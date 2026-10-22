@@ -1,16 +1,21 @@
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Literal
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 app = FastAPI(
     title="Master Agent API",
-    description="A safe starter API for a modular personal automation agent.",
-    version="0.3.0",
+    description="A safe starter API with a browser-based AI chat dashboard.",
+    version="0.4.0",
 )
+
+BASE_DIR = Path(__file__).resolve().parent
+DASHBOARD_FILE = BASE_DIR / "static" / "index.html"
 
 # Starter-only in-memory task store. Tasks reset when the process restarts.
 # Add authentication and persistent storage before exposing this API publicly.
@@ -31,16 +36,10 @@ def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-@app.get("/")
-def root():
-    return {
-        "name": "master-agent",
-        "status": "running",
-        "version": app.version,
-        "docs": "/docs",
-        "health": "/health",
-        "chat": "/chat",
-    }
+@app.get("/", include_in_schema=False)
+def dashboard():
+    """Serve the browser chat dashboard."""
+    return FileResponse(DASHBOARD_FILE)
 
 
 @app.get("/health")
@@ -58,7 +57,7 @@ def chat(payload: ChatRequest):
             detail="AI is not configured. Set GEMINI_API_KEY in your local .env file and restart the service.",
         )
 
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
     try:
         from google import genai
 
