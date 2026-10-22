@@ -192,7 +192,25 @@ def chat(payload: ChatRequest):
             types.Content(role="user", parts=[types.Part.from_text(text=payload.message)])
         )
         client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(model=model, contents=contents)
+        active_model = model
+        try:
+            response = client.models.generate_content(model=active_model, contents=contents)
+        except Exception as primary_error:
+            error_text = str(primary_error).upper()
+            is_temporary_overload = "503" in error_text or "UNAVAILABLE" in error_text
+            fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.6-flash").strip()
+            if not is_temporary_overload or not fallback_model or fallback_model == active_model:
+                raise
+            print(f"Gemini model {active_model} temporarily unavailable; trying fallback model {fallback_model}.")
+            try:
+                response = client.models.generate_content(model=fallback_model, contents=contents)
+                active_model = fallback_model
+            except Exception as fallback_error:
+                print(f"Gemini fallback request failed: {type(fallback_error).__name__}")
+                raise HTTPException(
+                    status_code=503,
+                    detail="Gemini is temporarily overloaded on the primary and fallback models. Wait a minute and try again.",
+                ) from fallback_error
         answer = (response.text or "").strip()
         if not answer:
             raise HTTPException(status_code=502, detail="The AI model returned an empty response.")
@@ -207,7 +225,7 @@ def chat(payload: ChatRequest):
             )
         return {
             "provider": "google-gemini",
-            "model": model,
+            "model": active_model,
             "answer": answer,
             "conversation_id": conversation_id,
         }
