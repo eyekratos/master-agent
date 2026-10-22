@@ -2,10 +2,12 @@
 
 A personal AI-agent project designed to grow into a modular automation system.
 
-## Current starter features
+## Current features
 
 - FastAPI backend with a health endpoint
-- Simple in-memory task creation and listing API
+- Create, list, and inspect tasks
+- Run safe built-in task types: `echo`, `word_count`, and `current_time`
+- Task lifecycle fields: queued, running, completed, failed
 - Interactive API docs at `/docs`
 - Dockerfile and Docker Compose for local testing
 - Environment-variable template for future AI provider configuration
@@ -37,11 +39,29 @@ uvicorn app.main:app --reload
 
 - `GET /` — service overview
 - `GET /health` — health check
-- `POST /tasks` — create a task (JSON body: `{"title":"Example task","details":"Optional notes"}`)
+- `POST /tasks` — create a task
 - `GET /tasks` — list tasks
-- `GET /tasks/{task_id}` — get one task
+- `GET /tasks/{task_id}` — inspect a task
+- `POST /tasks/{task_id}/run` — execute a supported built-in task
 
-The task store is in memory for this starter version. Tasks are lost when the service restarts. No AI model is connected yet; this is the backend foundation.
+Example create-task body:
+
+```json
+{
+  "title": "Count words",
+  "details": "hello from master agent",
+  "task_type": "word_count"
+}
+```
+
+Supported task types:
+- `echo` — returns the details text
+- `word_count` — counts words and characters in details
+- `current_time` — returns the current UTC time
+
+In Swagger UI, create a task with `POST /tasks`, copy the returned `id`, then use that ID in `POST /tasks/{task_id}/run`. Check the result with `GET /tasks/{task_id}`.
+
+The task store is in memory; tasks are lost when the service restarts. These are deterministic demo tasks, not an AI model integration yet.
 
 ## Security notes
 
@@ -52,8 +72,8 @@ The task store is in memory for this starter version. Tasks are lost when the se
 
 ## Roadmap
 
-1. Add a defined task runner and status lifecycle.
-2. Add persistent task storage.
+1. Add persistent task storage.
+2. Add a task queue and scheduled jobs.
 3. Add an AI provider adapter after choosing a provider and budget.
 4. Add authentication and safe tool permissions.
 5. Deploy to an available free-tier cloud service, respecting its limits.
